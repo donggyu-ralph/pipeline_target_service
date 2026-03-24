@@ -3,13 +3,36 @@ from src.models.pipeline import Pipeline
 from src.pipeline.errors import AnalysisError
 from src.services.qwen_client import QwenClient
 from src.utils.logging_config import get_logger
+from jsonschema import validate, ValidationError
 
 logger = get_logger(__name__)
 
+# JSON Schema for validating the structure of preprocessed['preview']
+PREVIEW_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "content": {"type": "string"},
+        "metadata": {
+            "type": "object",
+            "properties": {
+                "size": {"type": "integer"},
+                "format": {"type": "string"},
+            },
+            "required": ["size", "format"],
+        },
+    },
+    "required": ["content", "metadata"],
+}
 
 async def analyze_stage(pipeline: Pipeline, preprocessed: dict, qwen: QwenClient) -> dict:
     """Call Qwen API to analyze preprocessed data."""
     file_type = preprocessed["type"]
+
+    # Validate the structure of preprocessed['preview']
+    try:
+        validate(instance=preprocessed["preview"], schema=PREVIEW_SCHEMA)
+    except ValidationError as e:
+        raise AnalysisError(f"Invalid preview structure: {e.message}") from e
 
     try:
         if file_type == "csv":
