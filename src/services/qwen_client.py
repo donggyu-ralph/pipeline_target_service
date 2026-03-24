@@ -16,7 +16,7 @@ class QwenClient:
         self.settings = settings
         self.client = httpx.AsyncClient(
             base_url=settings.base_url,
-            timeout=httpx.Timeout(settings.timeout, connect=10.0),
+            timeout=httpx.Timeout(300, connect=10.0),  # Timeout 값을 300초로 변경
             headers={"Authorization": f"Bearer {settings.api_key}"},
             verify=False,  # Self-signed cert on MLX server
         )
