@@ -4,12 +4,18 @@ import time
 from typing import Any
 
 import httpx
+from pydantic import BaseModel, ValidationError
 
 from src.config import QwenSettings
 from src.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 
+class CsvPayload(BaseModel):
+    summary: str
+    columns: list[str]
+    row_count: int
+    anomalies: list[str]
 
 class QwenClient:
     def __init__(self, settings: QwenSettings):
@@ -72,7 +78,16 @@ class QwenClient:
                 ),
             }
         ]
-        return await self.chat(messages)
+        response = await self.chat(messages)
+        
+        # Validate the response payload
+        try:
+            CsvPayload(**response)
+        except ValidationError as e:
+            logger.error("Invalid CSV analysis response: %s", e.errors())
+            raise ValueError("Invalid response format from CSV analysis") from e
+        
+        return response
 
     async def analyze_image(self, image_data: bytes, file_type: str = "jpg") -> dict[str, Any]:
         """Analyze image using Qwen VLM."""
