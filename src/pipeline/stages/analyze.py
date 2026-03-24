@@ -3,6 +3,7 @@ from src.models.pipeline import Pipeline
 from src.pipeline.errors import AnalysisError
 from src.services.qwen_client import QwenClient
 from src.utils.logging_config import get_logger
+import httpx  # 추가된 import
 
 logger = get_logger(__name__)
 
@@ -25,6 +26,13 @@ async def analyze_stage(pipeline: Pipeline, preprocessed: dict, qwen: QwenClient
             result = await qwen.analyze_text(preprocessed["preview"], task="summarize")
         else:
             raise AnalysisError(f"No analyzer for type: {file_type}")
+
+        # HTTP 요청에 대한 예외 처리 및 응답 검증
+        if not isinstance(result, dict) or "content" not in result:
+            raise AnalysisError("Invalid response from Qwen API")
+
+    except httpx.HTTPStatusError as e:
+        raise AnalysisError(f"HTTP error occurred: {e.response.status_code} - {e.response.text}") from e
     except AnalysisError:
         raise
     except Exception as e:
