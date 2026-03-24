@@ -68,7 +68,7 @@ class QwenClient:
                     "다음 CSV 데이터를 분석해주세요. JSON 형식으로 응답하세요.\n\n"
                     "키: summary(데이터 요약), columns(컬럼 설명 리스트), "
                     "row_count(행 수), anomalies(이상치나 특이사항)\n\n"
-                    f"CSV 데이터:\n{csv_content[:8000]}"  # Limit to avoid token overflow
+                    f"CSV 데이터:\n{csv_content}"
                 ),
             }
         ]

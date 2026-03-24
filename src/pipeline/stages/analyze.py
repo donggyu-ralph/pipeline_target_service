@@ -3,6 +3,7 @@ from src.models.pipeline import Pipeline
 from src.pipeline.errors import AnalysisError
 from src.services.qwen_client import QwenClient
 from src.utils.logging_config import get_logger
+from src.utils.validation import validate_preview_structure  # 추가된 import
 
 logger = get_logger(__name__)
 
@@ -10,6 +11,10 @@ logger = get_logger(__name__)
 async def analyze_stage(pipeline: Pipeline, preprocessed: dict, qwen: QwenClient) -> dict:
     """Call Qwen API to analyze preprocessed data."""
     file_type = preprocessed["type"]
+
+    # preprocessed['preview'] 구조 검증
+    if not validate_preview_structure(preprocessed.get("preview"), file_type):
+        raise AnalysisError(f"Invalid preview structure for type: {file_type}")
 
     try:
         if file_type == "csv":
