@@ -34,24 +34,27 @@ class PipelineManager:
         self.qwen = qwen
         self.settings = settings
         self._semaphore = asyncio.Semaphore(settings.max_concurrent_pipelines)
-        self._upload_files: dict[str, UploadFile] = {}
+        self._upload_contents: dict[str, tuple[UploadFile, bytes]] = {}
 
-    async def create_pipeline(self, file: UploadFile) -> Pipeline:
-        """Create a new pipeline entry and store the upload file reference."""
+    async def create_pipeline(self, file: UploadFile, file_content: bytes = None) -> Pipeline:
+        """Create a new pipeline entry and store the upload file content."""
         filename = file.filename or "unknown"
         file_ext = Path(filename).suffix.lstrip(".").lower()
+
+        if file_content is None:
+            file_content = await file.read()
 
         pipeline = Pipeline(
             id=str(uuid.uuid4()),
             filename=filename,
             file_type=file_ext,
-            file_size=0,  # Updated after upload
+            file_size=len(file_content),
             status=PipelineStatus.PENDING,
             current_stage="pending",
         )
 
         pipeline = await self.db.create_pipeline(pipeline)
-        self._upload_files[pipeline.id] = file
+        self._upload_contents[pipeline.id] = (file, file_content)
 
         logger.info("pipeline_created", pipeline_id=pipeline.id, filename=filename)
         return pipeline
@@ -68,14 +71,16 @@ class PipelineManager:
             logger.error("pipeline_not_found", pipeline_id=pipeline_id)
             return
 
-        file = self._upload_files.pop(pipeline_id, None)
+        file_data = self._upload_contents.pop(pipeline_id, None)
+        file = file_data[0] if file_data else None
+        file_content = file_data[1] if file_data else None
 
         try:
             # Stage 1: Upload
             await self.db.update_pipeline_status(
                 pipeline_id, PipelineStatus.UPLOADING, "upload"
             )
-            pipeline = await upload_stage(file, pipeline, self.minio, self.settings)
+            pipeline = await upload_stage(file, pipeline, self.minio, self.settings, file_content)
             await self.db.update_pipeline_minio_path(pipeline_id, pipeline.minio_path)
 
             # Stage 2: Preprocess
@@ -105,10 +110,8 @@ class PipelineManager:
         except PipelineError as e:
             tb = traceback.format_exc()
             logger.error(
-                "pipeline_failed",
-                pipeline_id=pipeline_id,
-                error=str(e),
-                stage=pipeline.current_stage,
+                f"Pipeline {pipeline_id[:8]} failed at {pipeline.current_stage}: {e}",
+                exc_info=True,
             )
             await self.db.update_pipeline_status(
                 pipeline_id,
@@ -120,9 +123,8 @@ class PipelineManager:
         except Exception as e:
             tb = traceback.format_exc()
             logger.error(
-                "pipeline_unexpected_error",
-                pipeline_id=pipeline_id,
-                error=str(e),
+                f"Pipeline {pipeline_id[:8]} unexpected error: {e}",
+                exc_info=True,
             )
             await self.db.update_pipeline_status(
                 pipeline_id,

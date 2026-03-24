@@ -18,13 +18,17 @@ async def create_pipeline(file: UploadFile = File(...)):
     """Create a new pipeline by uploading a file."""
     manager = get_pipeline_manager()
 
+    # Read file content before response closes the file handle
+    file_content = await file.read()
+    await file.seek(0)
+
     try:
-        pipeline = await manager.create_pipeline(file)
+        pipeline = await manager.create_pipeline(file, file_content)
     except Exception as e:
         logger.error("pipeline_creation_failed", error=str(e))
         raise HTTPException(status_code=400, detail=str(e))
 
-    # Run pipeline in background
+    # Run pipeline in background with pre-read content
     asyncio.create_task(manager.run_pipeline(pipeline.id))
 
     return PipelineResponse(**pipeline.model_dump())

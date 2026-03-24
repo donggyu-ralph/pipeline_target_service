@@ -17,10 +17,11 @@ async def upload_stage(
     pipeline: Pipeline,
     minio: MinIOClient,
     settings: PipelineSettings,
+    file_content: bytes = None,
 ) -> Pipeline:
     """Upload file to MinIO after validation."""
-    # Read file content
-    content = await file.read()
+    # Use pre-read content or read from file
+    content = file_content if file_content is not None else await file.read()
     file_size = len(content)
 
     # Validate file size
