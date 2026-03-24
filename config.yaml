@@ -1,0 +1,45 @@
+service:
+  name: "data-pipeline-service"
+  version: "1.0.0"
+
+server:
+  host: "0.0.0.0"
+  port: 8000
+
+minio:
+  endpoint: "minio.data.svc.cluster.local:9000"
+  access_key: "${MINIO_ACCESS_KEY}"
+  secret_key: "${MINIO_SECRET_KEY}"
+  bucket: "pipeline-data"
+  secure: false
+
+postgresql:
+  host: "postgres.data.svc.cluster.local"
+  port: 5432
+  database: "pipeline"
+  user: "${PG_USER}"
+  password: "${PG_PASSWORD}"
+
+qwen:
+  base_url: "http://192.168.50.26:32000/v1"
+  api_key: "${QWEN_API_KEY}"
+  model: "qwen3-vl:32b"
+  max_tokens: 2048
+  timeout: 120
+
+pipeline:
+  max_file_size_mb: 50
+  supported_formats:
+    - "csv"
+    - "json"
+    - "txt"
+    - "jpg"
+    - "jpeg"
+    - "png"
+  max_concurrent_pipelines: 3
+  retry_max_attempts: 3
+  retry_delay_seconds: 10
+
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
