@@ -21,7 +21,7 @@ postgresql:
   password: "${PG_PASSWORD}"
 
 qwen:
-  base_url: "http://192.168.50.26:32000/v1"
+  base_url: "https://192.168.50.26:32000/v1"
   api_key: "${QWEN_API_KEY}"
   model: "qwen3-vl:32b"
   max_tokens: 2048

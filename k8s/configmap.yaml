@@ -10,6 +10,6 @@ data:
   PG_HOST: "postgres.data.svc"
   PG_PORT: "5432"
   PG_DATABASE: "pipeline"
-  QWEN_BASE_URL: "http://192.168.50.26:32000/v1"
+  QWEN_BASE_URL: "https://192.168.50.26:32000/v1"
   QWEN_MODEL: "qwen3-vl:32b"
   LOG_LEVEL: "INFO"

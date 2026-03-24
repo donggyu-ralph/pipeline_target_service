@@ -18,6 +18,7 @@ class QwenClient:
             base_url=settings.base_url,
             timeout=httpx.Timeout(settings.timeout, connect=10.0),
             headers={"Authorization": f"Bearer {settings.api_key}"},
+            verify=False,  # Self-signed cert on MLX server
         )
 
     async def close(self) -> None:
