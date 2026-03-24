@@ -3,6 +3,7 @@ from src.models.pipeline import Pipeline
 from src.pipeline.errors import AnalysisError
 from src.services.qwen_client import QwenClient
 from src.utils.logging_config import get_logger
+import aiohttp
 
 logger = get_logger(__name__)
 
@@ -12,19 +13,23 @@ async def analyze_stage(pipeline: Pipeline, preprocessed: dict, qwen: QwenClient
     file_type = preprocessed["type"]
 
     try:
-        if file_type == "csv":
-            result = await qwen.analyze_csv(preprocessed["preview"])
-        elif file_type == "json":
-            result = await qwen.analyze_text(preprocessed["preview"], task="extract")
-        elif file_type == "image":
-            result = await qwen.analyze_image(
-                preprocessed["image_data"],
-                preprocessed["format"],
-            )
-        elif file_type == "text":
-            result = await qwen.analyze_text(preprocessed["preview"], task="summarize")
-        else:
-            raise AnalysisError(f"No analyzer for type: {file_type}")
+        async with aiohttp.ClientSession() as session:
+            if file_type == "csv":
+                result = await qwen.analyze_csv(preprocessed["preview"], session=session)
+            elif file_type == "json":
+                result = await qwen.analyze_text(preprocessed["preview"], task="extract", session=session)
+            elif file_type == "image":
+                result = await qwen.analyze_image(
+                    preprocessed["image_data"],
+                    preprocessed["format"],
+                    session=session,
+                )
+            elif file_type == "text":
+                result = await qwen.analyze_text(preprocessed["preview"], task="summarize", session=session)
+            else:
+                raise AnalysisError(f"No analyzer for type: {file_type}")
+    except aiohttp.ClientError as e:
+        raise AnalysisError(f"Network error occurred: {e}") from e
     except AnalysisError:
         raise
     except Exception as e:
