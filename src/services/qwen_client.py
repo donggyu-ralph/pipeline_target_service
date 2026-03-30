@@ -4,6 +4,7 @@ import time
 from typing import Any
 
 import httpx
+from httpx import RequestError
 
 from src.config import QwenSettings
 from src.utils.logging_config import get_logger
@@ -34,10 +35,21 @@ class QwenClient:
         }
 
         start = time.monotonic()
-        response = await self.client.post("/chat/completions", json=payload)
-        elapsed_ms = int((time.monotonic() - start) * 1000)
+        retries = 3
+        for attempt in range(retries):
+            try:
+                response = await self.client.post("/chat/completions", json=payload)
+                response.raise_for_status()
+                break  # Exit loop if request is successful
+            except (httpx.HTTPStatusError, RequestError) as e:
+                if attempt < retries - 1:
+                    logger.warning(f"Request failed: {e}. Retrying... ({attempt + 1}/{retries})")
+                    await asyncio.sleep(2)  # Wait before retrying
+                else:
+                    logger.error("Max retries exceeded. Raising exception.")
+                    raise
 
-        response.raise_for_status()
+        elapsed_ms = int((time.monotonic() - start) * 1000)
         result = response.json()
 
         tokens_used = result.get("usage", {}).get("total_tokens", 0)

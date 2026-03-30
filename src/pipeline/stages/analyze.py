@@ -3,9 +3,19 @@ from src.models.pipeline import Pipeline
 from src.pipeline.errors import AnalysisError
 from src.services.qwen_client import QwenClient
 from src.utils.logging_config import get_logger
+import asyncio
 
 logger = get_logger(__name__)
 
+async def analyze_with_retries(qwen_method, *args, retries=3, delay=1):
+    for attempt in range(retries):
+        try:
+            return await qwen_method(*args)
+        except Exception as e:
+            if attempt < retries - 1:
+                await asyncio.sleep(delay)
+            else:
+                raise e
 
 async def analyze_stage(pipeline: Pipeline, preprocessed: dict, qwen: QwenClient) -> dict:
     """Call Qwen API to analyze preprocessed data."""
@@ -13,16 +23,13 @@ async def analyze_stage(pipeline: Pipeline, preprocessed: dict, qwen: QwenClient
 
     try:
         if file_type == "csv":
-            result = await qwen.analyze_csv(preprocessed["preview"])
+            result = await analyze_with_retries(qwen.analyze_csv, preprocessed["preview"])
         elif file_type == "json":
-            result = await qwen.analyze_text(preprocessed["preview"], task="extract")
+            result = await analyze_with_retries(qwen.analyze_text, preprocessed["preview"], task="extract")
         elif file_type == "image":
-            result = await qwen.analyze_image(
-                preprocessed["image_data"],
-                preprocessed["format"],
-            )
+            result = await analyze_with_retries(qwen.analyze_image, preprocessed["image_data"], preprocessed["format"])
         elif file_type == "text":
-            result = await qwen.analyze_text(preprocessed["preview"], task="summarize")
+            result = await analyze_with_retries(qwen.analyze_text, preprocessed["preview"], task="summarize")
         else:
             raise AnalysisError(f"No analyzer for type: {file_type}")
     except AnalysisError:

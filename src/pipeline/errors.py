@@ -23,7 +23,15 @@ class PreprocessingError(PipelineError):
 
 class AnalysisError(PipelineError):
     """Raised when Qwen analysis fails."""
-    pass
+    
+    def __init__(self, message, analysis_step=None):
+        super().__init__(message)
+        self.analysis_step = analysis_step
+
+    def __str__(self):
+        if self.analysis_step:
+            return f"{self.args[0]} (Step: {self.analysis_step})"
+        return self.args[0]
 
 
 class StorageError(PipelineError):
